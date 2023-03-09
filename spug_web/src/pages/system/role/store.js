@@ -33,9 +33,17 @@ class Store {
     this.initPermissions()
   }
 
+  @computed get idMap() {
+    const tmp = {}
+    for (let item of this.records) {
+      tmp[item.id] = item
+    }
+    return tmp
+  }
+
   fetchRecords = () => {
     this.isFetching = true;
-    http.get('/api/account/role/')
+    return http.get('/api/account/role/')
       .then(res => this.records = res)
       .finally(() => this.isFetching = false)
   };

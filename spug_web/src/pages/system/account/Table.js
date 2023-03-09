@@ -10,6 +10,7 @@ import { Form, Radio, Modal, Button, Badge, message, Input } from 'antd';
 import { TableCard, Action } from 'components';
 import http from 'libs/http';
 import store from './store';
+import rStore from '../role/store';
 
 @observer
 class ComTable extends React.Component {
@@ -21,7 +22,12 @@ class ComTable extends React.Component {
   }
 
   componentDidMount() {
-    store.fetchRecords()
+    if (rStore.records.length === 0) {
+      rStore.fetchRecords()
+        .then(() => store.fetchRecords())
+    } else {
+      store.fetchRecords()
+    }
   }
 
   columns = [{
@@ -30,6 +36,10 @@ class ComTable extends React.Component {
   }, {
     title: '姓名',
     dataIndex: 'nickname',
+  }, {
+    title: '角色',
+    dataIndex: 'role_ids',
+    render: v => v.map(x => rStore.idMap[x]?.name).join(',')
   }, {
     title: '状态',
     render: text => text['is_active'] ? <Badge status="success" text="正常"/> : <Badge status="default" text="禁用"/>

@@ -113,6 +113,13 @@ function TransferIndex() {
     setFiles([...files])
   }
 
+  function handleCloseOutput() {
+    setToken()
+    if (!store.counter['0'] && !store.counter['2']) {
+      setFiles([])
+    }
+  }
+
   return (<AuthDiv auth="exec.transfer.do">
     <Breadcrumb>
       <Breadcrumb.Item>首页</Breadcrumb.Item>
@@ -121,11 +128,13 @@ function TransferIndex() {
     </Breadcrumb>
     <div className={style.index} hidden={token}>
       <div className={style.left}>
-        <Card type="inner" title="数据源" extra={(<Space size={24}>
-          <Upload multiple beforeUpload={handleUpload}><Space className="btn"><UploadOutlined/>上传本地文件</Space></Upload>
+        <Card type="inner" title={`数据源${files.length ? `（${files.length}）` : ''}`} extra={(<Space size={24}>
+          <Upload multiple beforeUpload={handleUpload}><Space
+            className="btn"><UploadOutlined/>上传本地文件</Space></Upload>
           <Space className="btn" onClick={handleAddHostFile}><CloudServerOutlined/>添加主机文件</Space>
         </Space>)}>
-          <Table rowKey="id" showHeader={false} pagination={false} size="small" dataSource={files}>
+          <Table rowKey="id" className={style.table} showHeader={false} pagination={false} size="small"
+                 dataSource={files}>
             <Table.Column title="文件来源" dataIndex="name"/>
             <Table.Column title="文件名称/路径" render={info => info.type === 'upload' ? info.path.name : (
               <Input onChange={e => info.path = e.target.value} placeholder="请输入要同步的目录路径"/>)}/>
@@ -134,7 +143,8 @@ function TransferIndex() {
           </Table>
         </Card>
         <Card type="inner" title="分发目标" style={{margin: '24px 0'}} bodyStyle={{paddingBottom: 0}} extra={(
-          <Tooltip className={style.tips} title="文件分发功能依赖rsync，大部分linux发行版默认都已安装，如未安装可通过「批量执行/执行任务」进行批量安装。">
+          <Tooltip className={style.tips}
+                   title="文件分发功能依赖rsync，大部分linux发行版默认都已安装，如未安装可通过「批量执行/执行任务」进行批量安装。">
             <BulbOutlined/> 小提示
           </Tooltip>
         )}>
@@ -182,7 +192,7 @@ function TransferIndex() {
       </div>
     </div>
     <Selector {...sProps}/>
-    {token ? <Output token={token} onBack={() => setToken()}/> : null}
+    {token ? <Output token={token} onBack={handleCloseOutput}/> : null}
   </AuthDiv>)
 }
 
