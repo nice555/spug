@@ -5,15 +5,15 @@
  */
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react';
-import { Modal, Row, Col, Tree, Table, Button, Space, Input } from 'antd';
-import { FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
+import { Modal, Row, Col, Tree, Table, Button, Space, Input, Alert } from 'antd';
+import { FolderOpenOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import IPAddress from './IPAddress';
 import hStore from './store';
 import store from './store2';
-import styles from './index.module.less';
+import styles from './selector.module.less';
 
-
-export default observer(function (props) {
+function HostSelector(props) {
+  const [visible, setVisible] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -42,8 +42,8 @@ export default observer(function (props) {
   }, [store.treeData])
 
   useEffect(() => {
-    setSelectedRowKeys(props.selectedRowKeys || [])
-  }, [props.selectedRowKeys])
+    setSelectedRowKeys([...props.value])
+  }, [props.value])
 
   useEffect(() => {
     if (props.onlySelf) {
@@ -62,21 +62,17 @@ export default observer(function (props) {
   }
 
   function handleSubmit() {
-    if (props.onOk) {
-      setLoading(true);
-      let res
-      const selectedRows = store.rawRecords.filter(x => selectedRowKeys.includes(x.id))
-      if (props.onlyOne) {
-        res = props.onOk(store.group, selectedRowKeys[0], selectedRows[0])
-      } else {
-        res = props.onOk(store.group, selectedRowKeys, selectedRows);
-      }
-      if (res && res.then) {
-        res.then(props.onCancel, () => setLoading(false))
-      } else {
-        props.onCancel();
-        setLoading(false)
-      }
+    if (props.mode === 'ids') {
+      props.onChange(props.onlyOne ? selectedRowKeys[0] : selectedRowKeys)
+      handleClose()
+    } else if (props.mode === 'rows') {
+      const value = store.rawRecords.filter(x => selectedRowKeys.includes(x.id))
+      props.onChange(props.onlyOne ? value[0] : value)
+      handleClose()
+    } else if (props.mode === 'group') {
+      setLoading(true)
+      props.onChange(store.group, selectedRowKeys)
+        .then(handleClose, () => setLoading(false))
     }
   }
 
@@ -109,67 +105,113 @@ export default observer(function (props) {
     )
   }
 
+  function handleClose() {
+    setSelectedRowKeys([])
+    setLoading(false)
+    setVisible(false)
+    if (props.onCancel) {
+      props.onCancel()
+    }
+  }
+
   return (
-    <Modal
-      visible={[undefined, true].includes(props.visible)}
-      width={1000}
-      className={styles.selector}
-      title={props.title || '主机列表'}
-      onOk={handleSubmit}
-      okButtonProps={{disabled: selectedRowKeys.length === 0}}
-      confirmLoading={loading}
-      onCancel={props.onCancel}>
-      <Row>
-        <Col span={6} style={{borderRight: '8px solid #f0f0f0', paddingRight: 12}}>
-          <div className={styles.gTitle}>分组列表</div>
-          <Tree.DirectoryTree
-            showIcon={false}
-            autoExpandParent
-            expandAction="doubleClick"
-            selectedKeys={[store.group.key]}
-            expandedKeys={expands}
-            treeData={store.treeData}
-            titleRender={treeRender}
-            onExpand={handleExpand}
-            onSelect={(_, {node}) => store.group = node}
-          />
-        </Col>
-        <Col span={18} style={{paddingLeft: 12}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 12}}>
-            <Input allowClear style={{width: 260}} placeholder="输入名称/IP检索"
-                   onChange={e => store.f_word = e.target.value}/>
-            <Space hidden={selectedRowKeys.length === 0}>
-              <div>已选择 {selectedRowKeys.length} 台主机</div>
-              <Button type="link" style={{paddingRight: 0}} onClick={() => setSelectedRowKeys([])}>取消选择</Button>
-            </Space>
-          </div>
-          <Table
-            rowKey="id"
-            dataSource={store.dataSource}
-            pagination={false}
-            scroll={{y: 480}}
-            onRow={record => {
-              return {
-                onClick: () => handleClickRow(record)
-              }
-            }}
-            rowSelection={{
-              selectedRowKeys,
-              hideSelectAll: props.onlyOne,
-              onSelect: handleClickRow,
-              onSelectAll: handleSelectAll
-            }}>
-            <Table.Column ellipsis width={170} title="主机名称" dataIndex="name"/>
-            <Table.Column width={320} title="IP地址" render={info => (
-              <Space>
-                <IPAddress ip={info.public_ip_address} isPublic/>
-                <IPAddress ip={info.private_ip_address}/>
+    <div className={styles.selector}>
+      {props.mode !== 'group' && (
+        props.children ? (
+          <div onClick={() => setVisible(true)}>{props.children}</div>
+        ) : (
+          props.type === 'button' ? (
+            props.value.length > 0 ? (
+              <Alert
+                type="info"
+                className={styles.area}
+                message={<div>已选择 <b style={{fontSize: 18, color: '#1890ff'}}>{props.value.length}</b> 台主机</div>}
+                onClick={() => setVisible(true)}/>
+            ) : (
+              <Button icon={<PlusOutlined/>} onClick={() => setVisible(true)}>
+                添加目标主机
+              </Button>
+            )) : (
+            <div style={{display: 'flex', alignItems: 'center'}}>
+              {props.value.length > 0 && <span style={{marginRight: 16}}>已选择 {props.value.length} 台</span>}
+              <Button type="link" style={{padding: 0}} onClick={() => setVisible(true)}>选择主机</Button>
+            </div>
+          )
+        )
+      )}
+
+      <Modal
+        visible={props.mode === 'group' || visible}
+        width={1000}
+        className={styles.modal}
+        title={props.title || '主机列表'}
+        onOk={handleSubmit}
+        okButtonProps={{disabled: selectedRowKeys.length === 0 && !props.nullable}}
+        confirmLoading={loading}
+        onCancel={handleClose}>
+        <Row>
+          <Col span={6} style={{borderRight: '8px solid #f0f0f0', paddingRight: 12}}>
+            <div className={styles.gTitle}>分组列表</div>
+            <Tree.DirectoryTree
+              showIcon={false}
+              autoExpandParent
+              expandAction="doubleClick"
+              selectedKeys={[store.group.key]}
+              expandedKeys={expands}
+              treeData={store.treeData}
+              titleRender={treeRender}
+              onExpand={handleExpand}
+              onSelect={(_, {node}) => store.group = node}
+            />
+          </Col>
+          <Col span={18} style={{paddingLeft: 12}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 12}}>
+              <Input allowClear style={{width: 260}} placeholder="输入名称/IP检索" value={store.f_word}
+                     onChange={e => store.f_word = e.target.value}/>
+              <Space hidden={selectedRowKeys.length === 0}>
+                <div>已选择 {selectedRowKeys.length} 台主机</div>
+                <Button type="link" style={{paddingRight: 0}} onClick={() => setSelectedRowKeys([])}>取消选择</Button>
               </Space>
-            )}/>
-            <Table.Column title="备注信息" dataIndex="desc"/>
-          </Table>
-        </Col>
-      </Row>
-    </Modal>
+            </div>
+            <Table
+              rowKey="id"
+              dataSource={store.dataSource}
+              pagination={false}
+              scroll={{y: 480}}
+              onRow={record => {
+                return {
+                  onClick: () => handleClickRow(record)
+                }
+              }}
+              rowSelection={{
+                selectedRowKeys,
+                hideSelectAll: props.onlyOne,
+                onSelect: handleClickRow,
+                onSelectAll: handleSelectAll
+              }}>
+              <Table.Column ellipsis width={170} title="主机名称" dataIndex="name"/>
+              <Table.Column width={320} title="IP地址" render={info => (
+                <Space>
+                  <IPAddress ip={info.public_ip_address} isPublic/>
+                  <IPAddress ip={info.private_ip_address}/>
+                </Space>
+              )}/>
+              <Table.Column title="备注信息" dataIndex="desc"/>
+            </Table>
+          </Col>
+        </Row>
+      </Modal>
+    </div>
   )
-})
+}
+
+HostSelector.defaultProps = {
+  value: [],
+  type: 'text',
+  mode: 'ids',
+  onlyOne: false,
+  nullable: false,
+  onChange: () => null
+}
+
+export default observer(HostSelector)
