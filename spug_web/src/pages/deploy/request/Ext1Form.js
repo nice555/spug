@@ -96,12 +96,16 @@ export default observer(function () {
       }
       setExtra1(branch)
       setExtra2(commit)
+      form.setFieldsValue({name: lds.get(branches, [branch, 0, 'message'])})
     } else if (type === 'tag') {
       setExtra1(lds.get(Object.keys(tags), 0))
-      setExtra2(null)
+      setExtra2(null) 
+      form.setFieldsValue({name: lds.get(tags, [lds.get(Object.keys(tags), 0), 'message'])})
     } else {
       setExtra1(lds.get(now_repositories, '0.id'))
       setExtra2(null)
+      const item = (lds.get(now_repositories, '0'))
+      form.setFieldsValue({name: item.env_name+item.app_name+':'+item.version}) 
     }
   }
 
@@ -121,6 +125,7 @@ export default observer(function () {
       const commit = lds.get(branches, [branch, 0, 'id'])
       setExtra1(branch);
       setExtra2(commit)
+      form.setFieldsValue({name: lds.get(branches, [branch, 0, 'message'])}) 
     }
   }
 
@@ -128,11 +133,31 @@ export default observer(function () {
     setGitType(v);
     _setDefault(v)
   }
-
+  function setTitle(v) {
+    setExtra2(v)
+    for (let item of versions.branches[extra1]) {
+      if (item.id === v){
+        form.setFieldsValue({name: item.message}) 
+        break
+      }
+    }
+  }
   function switchExtra1(v) {
     setExtra1(v)
     if (git_type === 'branch') {
       setExtra2(lds.get(versions.branches[v], '0.id'))
+      form.setFieldsValue({name: lds.get(versions.branches, [v, 0, 'message'])}) 
+    }
+    if (git_type === 'tag') {
+      form.setFieldsValue({name: lds.get(versions.tags, [v, 'message'])}) 
+    }
+    if (git_type === 'repository'){
+      for (let item of repositories) {
+        if (item.id === v){
+          form.setFieldsValue({name:item.env_name+item.app_name+':'+item.version})
+          break
+        }
+      }
     }
   }
 
@@ -210,7 +235,8 @@ export default observer(function () {
         </Form.Item>
         {git_type === 'branch' && (
           <Form.Item required label="选择Commit ID">
-            <Select value={extra2} placeholder="请选择" onChange={v => setExtra2(v)}>
+            {/* <Select value={extra2} placeholder="请选择" onChange={v => setExtra2(v)}> */}
+            <Select value={extra2} placeholder="请选择" onChange={v => setTitle(v)}>
               {extra1 && branches ? branches[extra1].map(item => (
                 <Select.Option key={item.id}>
                   <div style={{display: 'flex', justifyContent: 'space-between'}}>
